@@ -1,0 +1,149 @@
+<div class="demo-container">
+  <!-- Vertical Scrolling Example -->
+  <div>
+    <h3>Synchronized Vertical Scrolling</h3>
+
+    <div class="scroll-container" scrollSyncContainer syncAxis="vertical">
+      <div
+        syncScroll
+        scrollId="panel-one"
+        class="scroll-panel"
+      >
+        <div *ngFor="let item of items" class="scroll-item">
+          {{ item }} (Panel 1)
+        </div>
+      </div>
+
+      <div
+        syncScroll
+        scrollId="panel-two"
+        class="scroll-panel"
+      >
+        <div *ngFor="let item of items" class="scroll-item">
+          {{ item }} (Panel 2)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Horizontal Scrolling Example -->
+  <div>
+    <h3>Synchronized Horizontal Scrolling</h3>
+
+    <div class="scroll-container" scrollSyncContainer syncAxis="horizontal">
+      <div 
+        syncScroll
+        scrollId="horiz-one"
+        class="horizontal-panel"
+      >
+        <div class="horizontal-content">
+          <div *ngFor="let item of items" class="horizontal-item">
+            {{ item }}
+          </div>
+        </div>
+      </div>
+
+      <div 
+        syncScroll
+        scrollId="horiz-two"
+        class="horizontal-panel"
+      >
+        <div class="horizontal-content">
+          <div *ngFor="let item of items" class="horizontal-item">
+            {{ item }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Both Directions Example -->
+  <div>
+    <h3>Synchronized Two-Direction Scrolling</h3>
+
+    <div class="scroll-container" scrollSyncContainer syncAxis="both">
+      <div 
+        syncScroll
+        scrollId="table-one"
+        class="table-panel"
+      >
+        <table>
+          <tr *ngFor="let row of tableData">
+            <td *ngFor="let cell of row">{{ cell }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div 
+        syncScroll
+        scrollId="table-two"
+        class="table-panel"
+      >
+        <table>
+          <tr *ngFor="let row of tableData">
+            <td *ngFor="let cell of row">{{ cell }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Example with Multiple Groups -->
+  <div>
+    <h3>Multiple Synchronized Groups</h3>
+
+    <div class="scroll-container" 
+         scrollSyncContainer 
+         [scrollGroups]="[['group-a-1', 'group-a-2'], ['group-b-1', 'group-b-2']]">
+      <div class="group-wrapper">
+        <h4>Group A</h4>
+        <div class="scroll-container">
+          <div 
+            syncScroll
+            scrollId="group-a-1"
+            class="scroll-panel"
+          >
+            <div *ngFor="let item of items" class="scroll-item">
+              {{ item }} (A1)
+            </div>
+          </div>
+
+          <div 
+            syncScroll
+            scrollId="group-a-2"
+            class="scroll-panel"
+          >
+            <div *ngFor="let item of items" class="scroll-item">
+              {{ item }} (A2)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group-wrapper">
+        <h4>Group B</h4>
+        <div class="scroll-container">
+          <div 
+            syncScroll
+            scrollId="group-b-1"
+            class="scroll-panel"
+          >
+            <div *ngFor="let item of items" class="scroll-item">
+              {{ item }} (B1)
+            </div>
+          </div>
+
+          <div 
+            syncScroll
+            scrollId="group-b-2"
+            class="scroll-panel"
+          >
+            <div *ngFor="let item of items" class="scroll-item">
+              {{ item }} (B2)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
