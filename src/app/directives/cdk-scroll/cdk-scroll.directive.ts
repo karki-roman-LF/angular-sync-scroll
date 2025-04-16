@@ -7,9 +7,10 @@ import {
   OnDestroy,
   Self,
   NgZone,
+  ElementRef,
 } from '@angular/core';
 import { CdkScrollable, ScrollDispatcher } from '@angular/cdk/scrolling';
-import { Observable, Subject } from 'rxjs';
+import { Subject } from 'rxjs';
 import { takeUntil, throttleTime, startWith, map, distinctUntilChanged } from 'rxjs/operators';
 
 @Directive({
@@ -26,52 +27,50 @@ export class SyncScrollDirective implements OnInit, OnDestroy {
   @Output() scrolled = new EventEmitter<{ x: number; y: number }>();
   
   private destroy$ = new Subject<void>();
+  private isScrolling = false;
+  private scrollTimeout: any = null;
   
   constructor(
-    // Inject the CdkScrollable that is host-injected into this directive
     @Self() private cdkScrollable: CdkScrollable,
-    // Use ScrollDispatcher to track scroll events globally
     private scrollDispatcher: ScrollDispatcher,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private elementRef: ElementRef
   ) {}
   
   ngOnInit() {
+    // Add a data attribute for easier debugging if needed
+    this.elementRef.nativeElement.setAttribute('data-scroll-id', this.scrollId);
     this.setupScrollListener();
   }
   
   private setupScrollListener() {
-    // This observable tracks scroll events for this specific scrollable element
     this.scrollDispatcher
       .scrolled()
       .pipe(
-        // Start by emitting once to capture initial scroll position
         startWith(null),
-        // Filter to only get events from this specific scrollable
         map(() => {
-          // Check if this is the scrollable that triggered the event
           const scrollOffset = {
             x: this.cdkScrollable.measureScrollOffset('left'),
             y: this.cdkScrollable.measureScrollOffset('top')
           };
           return scrollOffset;
         }),
-        // Only emit when the position actually changes
         distinctUntilChanged((prev, curr) => 
           prev.x === curr.x && prev.y === curr.y
         ),
-        // Throttle for performance (reduced for more responsiveness)
         throttleTime(5),
-        // Cleanup subscription on directive destroy
         takeUntil(this.destroy$)
       )
       .subscribe(position => {
-        // Emit the scroll position
-        this.scrolled.emit(position);
+        // Only emit if this isn't a programmatic scroll
+        if (!this.isScrolling) {
+          this.scrolled.emit(position);
+        }
       });
   }
   
   /**
-   * Gets the current scroll position using CdkScrollable
+   * Gets the current scroll position
    */
   public getCurrentPosition(): { x: number; y: number } {
     return {
@@ -81,10 +80,16 @@ export class SyncScrollDirective implements OnInit, OnDestroy {
   }
   
   /**
-   * Scrolls to the specified position using CdkScrollable
+   * Scrolls to the specified position
    */
   public scrollTo(point: { x: number; y: number }): void {
-    // Run outside Angular's change detection to avoid unnecessary cycles
+    // Set flag to avoid event loop
+    this.isScrolling = true;
+    
+    if (this.scrollTimeout) {
+      clearTimeout(this.scrollTimeout);
+    }
+    
     this.ngZone.runOutsideAngular(() => {
       // Apply scrolling based on sync axis
       if (this.syncAxis === 'horizontal' || this.syncAxis === 'both') {
@@ -98,10 +103,18 @@ export class SyncScrollDirective implements OnInit, OnDestroy {
           top: point.y
         });
       }
+      
+      // Reset the flag after a short delay
+      this.scrollTimeout = setTimeout(() => {
+        this.isScrolling = false;
+      }, 50);
     });
   }
   
   ngOnDestroy() {
+    if (this.scrollTimeout) {
+      clearTimeout(this.scrollTimeout);
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }

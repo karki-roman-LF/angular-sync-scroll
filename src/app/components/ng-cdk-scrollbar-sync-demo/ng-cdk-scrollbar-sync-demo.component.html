@@ -116,6 +116,130 @@
     <h3>Multiple Independent Scroll Groups</h3>
     <p>Demonstrating synchronization within separate groups</p>
     
+    <!-- Note: [scrollGroups] property binding is critically important to make the groups work -->
+    <div class="scroll-container" 
+         scrollSyncContainer 
+         [scrollGroups]="scrollGroups">
+      <div class="groups-wrapper">
+        <!-- Group A --><div class="demo-container">
+  <h2>Angular CDK Scroll Synchronization Demo</h2>
+  
+  <!-- Basic Synchronized Vertical Scrolling -->
+  <section class="demo-section">
+    <h3>Simple Vertical Scrolling</h3>
+    <p>Two panels synchronized vertically using CDK ScrollDispatcher</p>
+    
+    <div class="scroll-container" scrollSyncContainer syncAxis="vertical">
+      <div 
+        class="scroll-panel"
+        syncScroll
+        scrollId="vertical-panel-1">
+        <div *ngFor="let item of items; let i = index" class="scroll-item">
+          <strong>{{ item }}</strong>
+          <div>Panel 1 - Item description {{ i + 1 }}</div>
+        </div>
+      </div>
+
+      <div 
+        class="scroll-panel"
+        syncScroll
+        scrollId="vertical-panel-2">
+        <div *ngFor="let item of items; let i = index" class="scroll-item">
+          <strong>{{ item }}</strong>
+          <div>Panel 2 - Item description {{ i + 1 }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Horizontal Scrolling Example -->
+  <section class="demo-section">
+    <h3>Horizontal Scrolling</h3>
+    <p>Synchronized horizontal scrolling with CDK</p>
+    
+    <div class="scroll-container" scrollSyncContainer syncAxis="horizontal">
+      <div 
+        class="horizontal-panel"
+        syncScroll
+        scrollId="horizontal-panel-1">
+        <div class="horizontal-content">
+          <div *ngFor="let item of horizontalItems" class="horizontal-item">
+            {{ item }}
+          </div>
+        </div>
+      </div>
+
+      <div 
+        class="horizontal-panel"
+        syncScroll
+        scrollId="horizontal-panel-2">
+        <div class="horizontal-content">
+          <div *ngFor="let item of horizontalItems" class="horizontal-item">
+            {{ item }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Table with Both Direction Scrolling -->
+  <section class="demo-section">
+    <h3>Multi-Directional Table Scrolling</h3>
+    <p>Two tables synchronized in both directions</p>
+    
+    <div class="scroll-container" scrollSyncContainer syncAxis="both">
+      <div
+        class="table-panel"
+        syncScroll
+        scrollId="table-panel-1">
+        <table>
+          <thead>
+            <tr>
+              <th>Header</th>
+              <ng-container *ngFor="let col of tableColumns">
+                <th>{{ col }}</th>
+              </ng-container>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of tableData; let i = index">
+              <td class="row-header">Row {{ i + 1 }}</td>
+              <td *ngFor="let cell of row">{{ cell }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div
+        class="table-panel"
+        syncScroll
+        scrollId="table-panel-2">
+        <table>
+          <thead>
+            <tr>
+              <th>Header</th>
+              <ng-container *ngFor="let col of tableColumns">
+                <th>{{ col }}</th>
+              </ng-container>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of tableData; let i = index">
+              <td class="row-header">Row {{ i + 1 }}</td>
+              <td *ngFor="let cell of row">{{ cell }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Multiple Groups Example - Now with hardcoded group arrays for direct reference -->
+  <section class="demo-section">
+    <h3>Multiple Independent Scroll Groups</h3>
+    <p>Demonstrating synchronization within separate groups</p>
+    
+    <!-- Important: Use the direct array literal for clearer binding -->
     <div class="scroll-container" 
          scrollSyncContainer 
          [scrollGroups]="[['group-a-1', 'group-a-2'], ['group-b-1', 'group-b-2']]">
@@ -129,7 +253,7 @@
               syncScroll
               scrollId="group-a-1">
               <div *ngFor="let item of items; let i = index" class="scroll-item color-a">
-                <strong>{{ item }}</strong>
+                <strong>Group A - {{ item }}</strong>
                 <div>Group A - Panel 1, item {{ i + 1 }}</div>
               </div>
             </div>
@@ -139,7 +263,7 @@
               syncScroll
               scrollId="group-a-2">
               <div *ngFor="let item of items; let i = index" class="scroll-item color-a">
-                <strong>{{ item }}</strong>
+                <strong>Group A - {{ item }}</strong>
                 <div>Group A - Panel 2, item {{ i + 1 }}</div>
               </div>
             </div>
@@ -155,7 +279,7 @@
               syncScroll
               scrollId="group-b-1">
               <div *ngFor="let item of items; let i = index" class="scroll-item color-b">
-                <strong>{{ item }}</strong>
+                <strong>Group B - {{ item }}</strong>
                 <div>Group B - Panel 1, item {{ i + 1 }}</div>
               </div>
             </div>
@@ -165,7 +289,7 @@
               syncScroll
               scrollId="group-b-2">
               <div *ngFor="let item of items; let i = index" class="scroll-item color-b">
-                <strong>{{ item }}</strong>
+                <strong>Group B - {{ item }}</strong>
                 <div>Group B - Panel 2, item {{ i + 1 }}</div>
               </div>
             </div>
@@ -174,62 +298,58 @@
       </div>
     </div>
   </section>
-  
-  <!-- Large Dataset with Virtual Scrolling -->
-  <section class="demo-section">
-    <h3>Large Dataset with Virtual Scrolling</h3>
-    <p>Using CDK virtual scrolling with synchronized scrolling</p>
-    
-    <div class="scroll-container" scrollSyncContainer syncAxis="vertical">
-      <cdk-virtual-scroll-viewport
-        syncScroll
-        scrollId="virtual-list-1"
-        class="virtual-scroll-panel"
-        itemSize="50">
-        <div *cdkVirtualFor="let item of largeDataset; trackBy: trackByIndex" class="scroll-item">
-          <div class="item-content">
-            <strong>ID: {{ item.id }}</strong>
-            <p>{{ item.description }}</p>
-            <div class="tag-container">
-              <span *ngFor="let tag of item.tags" class="item-tag">{{ tag }}</span>
-            </div>
-          </div>
-        </div>
-      </cdk-virtual-scroll-viewport>
-      
-      <cdk-virtual-scroll-viewport
-        syncScroll
-        scrollId="virtual-list-2"
-        class="virtual-scroll-panel"
-        itemSize="50">
-        <div *cdkVirtualFor="let item of largeDataset; trackBy: trackByIndex" class="scroll-item">
-          <div class="item-details">
-            <div class="detail-header">Details for ID: {{ item.id }}</div>
-            <div class="detail-row">
-              <span class="label">Created:</span>
-              <span>{{ item.created | date }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="label">Status:</span>
-              <span [ngClass]="'status-' + item.status.toLowerCase()">{{ item.status }}</span>
-            </div>
-            <div class="metrics">
-              <div class="metric-box">
-                <div class="metric-value">{{ item.metrics.value1 }}</div>
-                <div class="metric-label">Views</div>
+</div>
+        <div class="group-container">
+          <h4>Group A (Synchronized)</h4>
+          <div class="scroll-group">
+            <div 
+              class="scroll-panel"
+              syncScroll
+              scrollId="group-a-1">
+              <div *ngFor="let item of items; let i = index" class="scroll-item color-a">
+                <strong>Group A - {{ item }}</strong>
+                <div>Group A - Panel 1, item {{ i + 1 }}</div>
               </div>
-              <div class="metric-box">
-                <div class="metric-value">{{ item.metrics.value2 }}</div>
-                <div class="metric-label">Clicks</div>
-              </div>
-              <div class="metric-box">
-                <div class="metric-value">{{ item.metrics.value3 }}</div>
-                <div class="metric-label">Sales</div>
+            </div>
+            
+            <div 
+              class="scroll-panel"
+              syncScroll
+              scrollId="group-a-2">
+              <div *ngFor="let item of items; let i = index" class="scroll-item color-a">
+                <strong>Group A - {{ item }}</strong>
+                <div>Group A - Panel 2, item {{ i + 1 }}</div>
               </div>
             </div>
           </div>
         </div>
-      </cdk-virtual-scroll-viewport>
+        
+        <!-- Group B -->
+        <div class="group-container">
+          <h4>Group B (Synchronized)</h4>
+          <div class="scroll-group">
+            <div 
+              class="scroll-panel"
+              syncScroll
+              scrollId="group-b-1">
+              <div *ngFor="let item of items; let i = index" class="scroll-item color-b">
+                <strong>Group B - {{ item }}</strong>
+                <div>Group B - Panel 1, item {{ i + 1 }}</div>
+              </div>
+            </div>
+            
+            <div 
+              class="scroll-panel"
+              syncScroll
+              scrollId="group-b-2">
+              <div *ngFor="let item of items; let i = index" class="scroll-item color-b">
+                <strong>Group B - {{ item }}</strong>
+                <div>Group B - Panel 2, item {{ i + 1 }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </div>

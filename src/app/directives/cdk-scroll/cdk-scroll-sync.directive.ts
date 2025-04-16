@@ -1,184 +1,219 @@
 import {
   Input,
+  OnInit,
   Directive,
   QueryList,
   ContentChildren,
   AfterViewInit,
   OnDestroy,
-  OnInit,
   NgZone,
+  ChangeDetectorRef,
+  AfterContentInit,
 } from '@angular/core';
 import { ScrollDispatcher } from '@angular/cdk/scrolling';
 import { Subject, merge, Observable } from 'rxjs';
-import { takeUntil, throttleTime, filter, map } from 'rxjs/operators';
+import { takeUntil, throttleTime, map, tap } from 'rxjs/operators';
 import { SyncScrollDirective } from './cdk-scroll.directive';
 
 @Directive({
   selector: '[scrollSyncContainer]',
   standalone: true,
 })
-export class ScrollSyncContainerDirective implements OnInit, AfterViewInit, OnDestroy {
+export class ScrollSyncContainerDirective implements OnInit, AfterViewInit, AfterContentInit, OnDestroy {
   @Input() scrollGroups: string[][] = [];
   @Input() syncAxis: 'both' | 'horizontal' | 'vertical' = 'both';
   
-  // Find all sync scroll directives within this container
   @ContentChildren(SyncScrollDirective, { descendants: true })
   scrollables!: QueryList<SyncScrollDirective>;
   
   private destroy$ = new Subject<void>();
   private scrollableMap = new Map<string, SyncScrollDirective>();
+  private activeScrollers = new Set<string>();
+  private groupMappings: Map<string, string[]> = new Map();
   
   constructor(
     private scrollDispatcher: ScrollDispatcher,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
   
   ngOnInit() {
-    // Optional: Use ScrollDispatcher for global monitoring if needed
     this.setupGlobalScrollListener();
+  }
+  
+  ngAfterContentInit() {
+    // Initial setup right after content is initialized
+    setTimeout(() => {
+      this.buildScrollableMap();
+      this.buildGroupMappings();
+    });
   }
   
   ngAfterViewInit() {
     // Setup scroll synchronization
-    this.setupScrollSync();
+    setTimeout(() => {
+      this.setupScrollSync();
+    });
     
     // Re-setup if the scrollables change
     this.scrollables.changes
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        this.buildScrollableMap();
-        this.setupScrollSync();
+        setTimeout(() => {
+          this.buildScrollableMap();
+          this.buildGroupMappings();
+          this.setupScrollSync();
+        });
       });
-      
-    // Initial map build
-    this.buildScrollableMap();
   }
   
   /**
-   * Creates a map of scrollId -> directive instance for faster lookups
+   * Create a map of scrollId -> directive instance for faster lookups
    */
   private buildScrollableMap() {
     this.scrollableMap.clear();
-    this.scrollables.forEach(scrollable => {
-      this.scrollableMap.set(scrollable.scrollId, scrollable);
-    });
+    
+    if (this.scrollables && this.scrollables.length > 0) {
+      this.scrollables.forEach(scrollable => {
+        if (scrollable && scrollable.scrollId) {
+          this.scrollableMap.set(scrollable.scrollId, scrollable);
+        }
+      });
+    }
+  }
+  
+  /**
+   * Build a mapping of scrollable ID to its group for quick lookup
+   */
+  private buildGroupMappings() {
+    this.groupMappings.clear();
+    
+    // If specific groups are defined
+    if (this.scrollGroups && this.scrollGroups.length > 0) {
+      // Map each scrollable to its group
+      this.scrollGroups.forEach((group, index) => {
+        group.forEach(scrollId => {
+          this.groupMappings.set(scrollId, group);
+        });
+      });
+      
+      // Handle ungrouped scrollables
+      const groupedIds = this.scrollGroups.flat();
+      const allIds = Array.from(this.scrollableMap.keys());
+      const ungroupedIds = allIds.filter(id => !groupedIds.includes(id));
+      
+      if (ungroupedIds.length > 1) {
+        // Create an automatic group for ungrouped scrollables
+        ungroupedIds.forEach(id => {
+          this.groupMappings.set(id, ungroupedIds);
+        });
+      }
+    } else {
+      // If no groups defined, all scrollables are in one group
+      const allIds = Array.from(this.scrollableMap.keys());
+      allIds.forEach(id => {
+        this.groupMappings.set(id, allIds);
+      });
+    }
   }
   
   /**
    * Uses ScrollDispatcher to track all scrolling in the application
-   * This can be useful for performance monitoring or global scroll behavior
    */
   private setupGlobalScrollListener() {
     this.scrollDispatcher.scrolled()
       .pipe(
-        throttleTime(50), // Less frequent than individual tracking
+        throttleTime(50),
         takeUntil(this.destroy$)
       )
       .subscribe(() => {
-        // Here you could add global scroll handling if needed
+        // Global scroll handling if needed
       });
   }
   
   private setupScrollSync() {
-    if (!this.scrollables || !this.scrollables.length) {
+    if (!this.scrollables || this.scrollables.length <= 1) {
       return;
     }
     
-    // If groups are defined, organize by groups
-    if (this.scrollGroups.length > 0) {
-      this.setupGroupedScrollSync();
-    } else {
-      // Otherwise sync all scrollables together
-      this.setupScrollSyncForGroup(this.scrollables.toArray());
-    }
-  }
-  
-  private setupGroupedScrollSync() {
-    // Get all scrollable IDs that are in groups
-    const scrollIdsInGroups = this.scrollGroups.flat();
-    
-    // Set up each group
-    this.scrollGroups.forEach(groupIds => {
-      // Find the scrollable directives for this group
-      const scrollGroup = groupIds
-        .map(id => this.scrollableMap.get(id))
-        .filter(Boolean) as SyncScrollDirective[];
-      
-      if (scrollGroup.length > 1) {
-        this.setupScrollSyncForGroup(scrollGroup);
-      }
-    });
-    
-    // Handle any scrollables not in groups (sync them together)
-    const ungroupedScrollables = this.scrollables.filter(
-      s => !scrollIdsInGroups.includes(s.scrollId)
-    );
-    
-    if (ungroupedScrollables.length > 1) {
-      this.setupScrollSyncForGroup(ungroupedScrollables);
-    }
-  }
-  
-  private setupScrollSyncForGroup(scrollGroup: SyncScrollDirective[]) {
-    // Create an array of scroll observables from all scrollables in the group
     const scrollObservables: Observable<{
       source: SyncScrollDirective;
       position: { x: number; y: number };
-    }>[] = scrollGroup.map(scrollable => 
-      scrollable.scrolled.pipe(
-        // Add the source information to each emission
-        map(position => ({ source: scrollable, position }))
-      )
-    );
+    }>[] = [];
     
-    // Merge all scroll observables into a single stream
+    // Create observables for all scrollables
+    this.scrollables.forEach(scrollable => {
+      const obs = scrollable.scrolled.pipe(
+        map(position => ({ source: scrollable, position })),
+        tap(data => {
+          // Process scroll event from this source
+          this.handleScrollEvent(data.source, data.position);
+        })
+      );
+      
+      scrollObservables.push(obs);
+    });
+    
+    // Merge all scroll observables
     merge(...scrollObservables)
       .pipe(
-        // Avoid excessive updates
-        throttleTime(5), // Reduced from 10ms to 5ms for more responsive synchronization
-        // Only continue until this directive is destroyed
+        throttleTime(5),
         takeUntil(this.destroy$)
       )
-      .subscribe(({ source, position }) => {
-        // Log for debugging
-        // console.log(`Scroll from ${source.scrollId}:`, position);
-        
-        // Synchronize all other scrollables in this group
-        this.synchronizeGroup(scrollGroup, source, position);
-      });
+      .subscribe();
   }
   
   /**
-   * Syncs all scrollables in a group based on one that triggered a scroll
+   * Process a scroll event from a source scrollable
    */
-  private synchronizeGroup(
-    group: SyncScrollDirective[],
-    source: SyncScrollDirective,
-    position: { x: number; y: number }
-  ) {
-    // Run outside Angular's change detection to avoid cascading change detection cycles
+  private handleScrollEvent(source: SyncScrollDirective, position: { x: number; y: number }) {
+    if (!source || !source.scrollId) {
+      return;
+    }
+    
+    // Get the group this scrollable belongs to
+    const sourceGroup = this.groupMappings.get(source.scrollId);
+    
+    if (!sourceGroup) {
+      return;
+    }
+    
+    // Add the source to active scrollers to prevent infinite loops
+    this.activeScrollers.add(source.scrollId);
+    
+    // Run outside Angular's change detection
     this.ngZone.runOutsideAngular(() => {
-      group
-        .filter(scrollable => scrollable !== source)
-        .forEach(scrollable => {
-          const currentPos = scrollable.getCurrentPosition();
-          const newPos = { x: currentPos.x, y: currentPos.y };
+      // Only sync scrollables in the same group
+      sourceGroup.forEach(targetId => {
+        if (targetId !== source.scrollId && !this.activeScrollers.has(targetId)) {
+          const target = this.scrollableMap.get(targetId);
           
-          // Update position based on sync axis
-          if (this.syncAxis === 'horizontal' || this.syncAxis === 'both') {
-            newPos.x = position.x;
+          if (target) {
+            const currentPos = target.getCurrentPosition();
+            const newPos = { x: currentPos.x, y: currentPos.y };
+            
+            // Apply scroll position based on sync axis
+            if (this.syncAxis === 'horizontal' || this.syncAxis === 'both') {
+              newPos.x = position.x;
+            }
+            
+            if (this.syncAxis === 'vertical' || this.syncAxis === 'both') {
+              newPos.y = position.y;
+            }
+            
+            // Set the sync axis on the target
+            target.syncAxis = this.syncAxis;
+            
+            // Apply scroll
+            target.scrollTo(newPos);
           }
-          
-          if (this.syncAxis === 'vertical' || this.syncAxis === 'both') {
-            newPos.y = position.y;
-          }
-          
-          // Set syncAxis on each scrollable to match container's setting
-          scrollable.syncAxis = this.syncAxis;
-          
-          // Apply the new scroll position
-          scrollable.scrollTo(newPos);
-        });
+        }
+      });
+      
+      // Remove the source from active scrollers after a short delay
+      setTimeout(() => {
+        this.activeScrollers.delete(source.scrollId);
+      }, 50);
     });
   }
   
