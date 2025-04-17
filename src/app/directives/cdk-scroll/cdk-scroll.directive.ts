@@ -85,25 +85,27 @@ export class SyncScrollDirective implements OnInit, OnDestroy {
   public scrollTo(point: { x: number; y: number }): void {
     // Set flag to avoid event loop
     this.isScrolling = true;
-    
+
+    // Clear any existing timeout
     if (this.scrollTimeout) {
       clearTimeout(this.scrollTimeout);
     }
-    
+
     this.ngZone.runOutsideAngular(() => {
-      // Apply scrolling based on sync axis
+      // Construct the scroll position object dynamically
+      const scrollPosition: { left?: number; top?: number } = {};
+
       if (this.syncAxis === 'horizontal' || this.syncAxis === 'both') {
-        this.cdkScrollable.scrollTo({
-          left: point.x
-        });
+        scrollPosition.left = point.x;
       }
-      
+
       if (this.syncAxis === 'vertical' || this.syncAxis === 'both') {
-        this.cdkScrollable.scrollTo({
-          top: point.y
-        });
+        scrollPosition.top = point.y;
       }
-      
+
+      // Apply the scroll position
+      this.cdkScrollable.scrollTo(scrollPosition);
+
       // Reset the flag after a short delay
       this.scrollTimeout = setTimeout(() => {
         this.isScrolling = false;
